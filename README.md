@@ -51,6 +51,18 @@ yarn dev
 
 O aplicativo estará disponível em `http://localhost:5173`
 
+### Variáveis de Ambiente
+
+Crie um arquivo `.env` na raiz do projeto (mesmo nível do `package.json`) com as seguintes variáveis para configurar a integração com o GoHighLevel:
+
+```env
+VITE_GHL_CLIENT_ID="seu-client-id-do-ghl"
+VITE_GHL_REDIRECT_URI="https://seu-dominio.com/leadconnectorhq/oauth/callback" # opcional
+VITE_GHL_AUTH_URL="https://marketplace.gohighlevel.com/oauth/chooselocation" # opcional
+```
+
+> **Importante:** O `VITE_GHL_CLIENT_ID` é obrigatório. Sem ele, o fluxo de OAuth não será iniciado.
+
 ### Build para Produção
 
 ```bash
