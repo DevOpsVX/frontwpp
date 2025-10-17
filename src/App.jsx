@@ -8,10 +8,16 @@ import { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket }
 // ========================================
 // CONFIGURAÇÃO OAUTH GHL
 // ========================================
-const GHL_OAUTH_CONFIG = {
-  clientId: '68f124a191e96282-7f0935de', // Client ID do seu app GHL
+const DEFAULT_GHL_OAUTH_CONFIG = {
+  clientId: '681fa839d9607f808d245978-mqukpyog',
   redirectUri: 'https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback',
   authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation'
+};
+
+const GHL_OAUTH_CONFIG = {
+  clientId: import.meta.env.VITE_GHL_CLIENT_ID || DEFAULT_GHL_OAUTH_CONFIG.clientId,
+  redirectUri: import.meta.env.VITE_GHL_REDIRECT_URI || DEFAULT_GHL_OAUTH_CONFIG.redirectUri,
+  authUrl: import.meta.env.VITE_GHL_AUTH_URL || DEFAULT_GHL_OAUTH_CONFIG.authUrl
 };
 
 // ========================================
@@ -192,6 +198,12 @@ const Dashboard = () => {
 
       // Salvar nome temporariamente no localStorage para usar após OAuth
       localStorage.setItem('volxo_pending_instance_name', name);
+
+      if (!GHL_OAUTH_CONFIG.clientId) {
+        throw new Error(
+          'Client ID do GoHighLevel não está configurado. Defina VITE_GHL_CLIENT_ID ou ajuste o fallback em DEFAULT_GHL_OAUTH_CONFIG.'
+        );
+      }
 
       // Construir URL de autorização OAuth do GoHighLevel
       const state = btoa(JSON.stringify({ instanceName: name, timestamp: Date.now() }));
