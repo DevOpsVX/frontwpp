@@ -8,14 +8,18 @@ import { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket }
 // ========================================
 // CONFIGURAÇÃO OAUTH GHL
 // ========================================
+
+const DEFAULT_GHL_OAUTH_CONFIG = {
+  clientId: '681fa839d9607f808d245978-mqukpyog',
+  redirectUri: 'https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback',
+  authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation'
+
+};
+
 const GHL_OAUTH_CONFIG = {
-  clientId: import.meta.env.VITE_GHL_CLIENT_ID,
-  redirectUri:
-    import.meta.env.VITE_GHL_REDIRECT_URI ||
-    'https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback',
-  authUrl:
-    import.meta.env.VITE_GHL_AUTH_URL ||
-    'https://marketplace.gohighlevel.com/oauth/chooselocation'
+  clientId: import.meta.env.VITE_GHL_CLIENT_ID || DEFAULT_GHL_OAUTH_CONFIG.clientId,
+  redirectUri: import.meta.env.VITE_GHL_REDIRECT_URI || DEFAULT_GHL_OAUTH_CONFIG.redirectUri,
+  authUrl: import.meta.env.VITE_GHL_AUTH_URL || DEFAULT_GHL_OAUTH_CONFIG.authUrl
 };
 
 // ========================================
@@ -199,7 +203,8 @@ const Dashboard = () => {
 
       if (!GHL_OAUTH_CONFIG.clientId) {
         throw new Error(
-          'Client ID do GoHighLevel não está configurado. Verifique a variável de ambiente VITE_GHL_CLIENT_ID.'
+          'Client ID do GoHighLevel não está configurado. Defina VITE_GHL_CLIENT_ID ou ajuste o fallback em DEFAULT_GHL_OAUTH_CONFIG.'
+
         );
       }
 
