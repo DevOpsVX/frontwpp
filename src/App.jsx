@@ -8,10 +8,12 @@ import { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket }
 // ========================================
 // CONFIGURAÇÃO OAUTH GHL
 // ========================================
+
 const DEFAULT_GHL_OAUTH_CONFIG = {
   clientId: '681fa839d9607f808d245978-mqukpyog',
   redirectUri: 'https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback',
   authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation'
+
 };
 
 const GHL_OAUTH_CONFIG = {
@@ -202,6 +204,7 @@ const Dashboard = () => {
       if (!GHL_OAUTH_CONFIG.clientId) {
         throw new Error(
           'Client ID do GoHighLevel não está configurado. Defina VITE_GHL_CLIENT_ID ou ajuste o fallback em DEFAULT_GHL_OAUTH_CONFIG.'
+
         );
       }
 

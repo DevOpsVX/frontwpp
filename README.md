@@ -56,13 +56,15 @@ O aplicativo estará disponível em `http://localhost:5173`
 Crie um arquivo `.env` na raiz do projeto (mesmo nível do `package.json`) com as seguintes variáveis para configurar a integração com o GoHighLevel:
 
 ```env
+
 VITE_GHL_CLIENT_ID="seu-client-id-do-ghl" # opcional (há um padrão configurado para produção)
-VITE_GHL_REDIRECT_URI="https://seu-dominio.com/leadconnectorhq/oauth/callback" # opcional
-VITE_GHL_AUTH_URL="https://marketplace.gohighlevel.com/oauth/chooselocation" # opcional
+
 ```
+
 
 > **Importante:** O app já inclui um Client ID e Redirect URI padrão utilizados em produção. Defina as variáveis acima apenas se
 > precisar sobrescrever esses valores (por exemplo, em ambientes de homologação ou desenvolvimento).
+
 
 ### Build para Produção
 
