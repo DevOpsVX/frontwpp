@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { Plus, Power, Trash2, Copy, Check, RefreshCw, Link2, QrCode as QrCodeIcon, AlertCircle, X } from 'lucide-react';
 import logoVolxo from './logo-volxo.png';
@@ -721,6 +721,14 @@ const QRCodePage = () => {
 };
 
 // ========================================
+// COMPONENTE: REDIRECT DE CONNECT PARA QRCODE
+// ========================================
+const ConnectRedirect = () => {
+  const { instanceId } = useParams();
+  return <Navigate to={`/qrcode/${instanceId}`} replace />;
+};
+
+// ========================================
 // COMPONENTE: APP PRINCIPAL
 // ========================================
 function App() {
@@ -729,6 +737,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/qrcode/:instanceId" element={<QRCodePage />} />
+        <Route path="/connect/:instanceId" element={<ConnectRedirect />} />
       </Routes>
     </Router>
   );
