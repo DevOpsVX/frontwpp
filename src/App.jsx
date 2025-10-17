@@ -213,7 +213,7 @@ const Dashboard = () => {
       const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(GHL_OAUTH_CONFIG.redirectUri)}&response_type=code&state=${state}`;
 
       // Redirecionar para OAuth do GHL
-      window.location.href = oauthUrl;
+      window.location.href = installLink;
 
     } catch (error) {
       throw error;
