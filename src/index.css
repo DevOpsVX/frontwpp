@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg-dark text-white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+}
+
+@layer components {
+  .neon-glow {
+    @apply shadow-neon;
+  }
+
+  .neon-glow-strong {
+    @apply shadow-neon-strong;
+  }
+
+  .neon-text {
+    @apply text-shadow-neon;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-black px-6 py-3 rounded-lg font-bold hover:bg-primary-dark transition-all duration-300 neon-glow hover:neon-glow-strong;
+  }
+
+  .btn-secondary {
+    @apply bg-primary/10 text-primary border border-primary/30 px-4 py-2 rounded-lg font-bold hover:bg-primary/20 transition-all duration-300;
+  }
+
+  .card {
+    @apply bg-bg-card border border-primary/20 rounded-2xl p-6 hover:border-primary/50 transition-all duration-300 hover:neon-glow;
+  }
+
+  .input-field {
+    @apply bg-black/30 border border-primary/20 rounded-lg px-4 py-2 text-white outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all;
+  }
+}
+
+/* Animações customizadas */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00ffff;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00cccc;
+}
+
