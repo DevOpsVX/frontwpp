@@ -10,7 +10,7 @@ import ConnectWhatsApp from './ConnectWhatsApp';
 // CONFIGURAÇÃO OAUTH GHL
 // ========================================
 const GHL_OAUTH_CONFIG = {
-  clientId: '68f124a191e96282-7f0935de', // Client ID do seu app GHL
+  clientId: '68f1fa89d9f07703ad254978-mgukpyog', // Client ID do app GHL (mesmo do backend)
   redirectUri: 'https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback',
   authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation'
 };
