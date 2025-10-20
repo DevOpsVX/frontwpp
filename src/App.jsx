@@ -196,14 +196,14 @@ const Dashboard = () => {
 
       // Construir URL de autorização OAuth do GoHighLevel
       const state = btoa(JSON.stringify({ instanceName: name, timestamp: Date.now() }));
-      // Scopes necessários para o WhatsApp
+      // Scopes necessários para o WhatsApp (formato GHL)
       const scopes = [
-        'contacts.readonly',
-        'contacts.write',
         'conversations.readonly',
         'conversations.write',
-        'conversations.message.readonly',
-        'conversations.message.write'
+        'conversations/message.readonly',
+        'conversations/message.write',
+        'contacts.readonly',
+        'contacts.write'
       ].join(' ');
       
       const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(GHL_OAUTH_CONFIG.redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}`;
