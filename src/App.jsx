@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { Plus, Power, Trash2, Copy, Check, RefreshCw, Link2, QrCode as QrCodeIcon, AlertCircle, X } from 'lucide-react';
 import logoVolxo from './logo-volxo.png';
@@ -210,7 +210,7 @@ const Dashboard = () => {
 
       // Construir URL de autorização OAuth do GoHighLevel
       const state = btoa(JSON.stringify({ instanceName: name, timestamp: Date.now() }));
-      const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(GHL_OAUTH_CONFIG.redirectUri)}&response_type=code&state=${state}=$?{GHL_OAUTH_CONFIG.scope}`;
+      const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(GHL_OAUTH_CONFIG.redirectUri)}&response_type=code&state=${state}`;
 
       // Redirecionar para OAuth do GHL
       window.location.href =oauthUrl;
@@ -718,6 +718,14 @@ const QRCodePage = () => {
       )}
     </div>
   );
+};
+
+// ========================================
+// COMPONENTE: REDIRECT DE CONNECT PARA QRCODE
+// ========================================
+const ConnectRedirect = () => {
+  const { instanceId } = useParams();
+  return <Navigate to={`/qrcode/${instanceId}`} replace />;
 };
 
 // ========================================
