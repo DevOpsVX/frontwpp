@@ -4,6 +4,7 @@ import QRCode from 'react-qr-code';
 import { Plus, Power, Trash2, Copy, Check, RefreshCw, Link2, QrCode as QrCodeIcon, AlertCircle, X } from 'lucide-react';
 import logoVolxo from './logo-volxo.png';
 import { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket } from './config/api';
+import ConnectWhatsApp from './ConnectWhatsApp';
 
 // ========================================
 // CONFIGURAÇÃO OAUTH GHL
@@ -714,6 +715,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/qrcode/:instanceId" element={<QRCodePage />} />
+        <Route path="/connect/:instanceId" element={<ConnectWhatsApp />} />
       </Routes>
     </Router>
   );
