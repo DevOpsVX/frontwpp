@@ -729,6 +729,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/qrcode/:instanceId" element={<QRCodePage />} />
+        <Route path="/connect/:instanceId" element={<QRCodePage />} />
       </Routes>
     </Router>
   );
