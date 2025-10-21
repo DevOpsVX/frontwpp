@@ -1,59 +1,61 @@
 // src/ConnectWhatsApp.jsx
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { API_ENDPOINTS, apiRequest, createWebSocket } from "./config/api";
 import QRCode from "react-qr-code";
-import { Power, RefreshCw, Check, AlertCircle } from "lucide-react";
+import { apiRequest, API_ENDPOINTS, createWebSocket } from "./config/api";
+
+const DURATION = 45_000; // 45s
 
 export default function ConnectWhatsApp() {
   const { instanceId } = useParams();
   const navigate = useNavigate();
 
   const [qr, setQr] = useState("");
-  const [status, setStatus] = useState("waiting"); // waiting|generating|connected|expired
-  const [phone, setPhone] = useState("");
   const [progress, setProgress] = useState(100);
+  const [status, setStatus] = useState("waiting"); // waiting|qr|ready|expired|error
+  const [phone, setPhone] = useState("");
+  const [profile, setProfile] = useState("");
+
   const wsRef = useRef(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
+    // abre WS já no mount
     wsRef.current = createWebSocket(instanceId, {
-      onOpen: () => {},
-      onQR: (q) => {
-        setQr(q);
-        setStatus("generating");
+      onRegistered: () => {
+        // assim que registrar, pedimos para gerar QR
+        startConnection();
+      },
+      onQR: (data) => {
+        setQr(data);
+        setStatus("qr");
         startTimer();
       },
-      onStatus: (m) => {
-        if (!m) return;
-        const lower = String(m).toLowerCase();
-        if (lower.includes("authenticated") || lower.includes("ready")) {
-          setStatus("connected");
+      onStatus: (msg) => {
+        if (msg === "ready" || msg.startsWith("state:")) {
+          setStatus("ready");
+        } else if (msg === "init_failed") {
+          setStatus("error");
         }
       },
       onPhone: (n) => {
         setPhone(n);
-        setStatus("connected");
+        setStatus("ready");
       },
-      onError: () => {},
-      onClose: () => {},
+      onProfile: (url) => setProfile(url),
     });
 
     return () => {
-      if (wsRef.current) wsRef.current.close();
-      if (timerRef.current) clearInterval(timerRef.current);
+      wsRef.current && wsRef.current.close();
+      clearInterval(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instanceId]);
 
   function startTimer() {
-    if (timerRef.current) clearInterval(timerRef.current);
+    clearInterval(timerRef.current);
     setProgress(100);
-
-    const duration = 45000; // 45s
-    const interval = 100;
-    const step = (interval / duration) * 100;
-
+    const step = 100 / (DURATION / 100);
     timerRef.current = setInterval(() => {
       setProgress((p) => {
         const np = p - step;
@@ -64,99 +66,193 @@ export default function ConnectWhatsApp() {
         }
         return np;
       });
-    }, interval);
+    }, 100);
   }
 
   async function startConnection() {
+    setStatus("waiting");
+    setQr("");
+    setPhone("");
+    setProfile("");
     try {
-      setStatus("generating");
       await apiRequest(API_ENDPOINTS.CONNECT_WHATSAPP, {
         method: "POST",
         body: JSON.stringify({ instanceId }),
       });
-      // Se o WS não devolver o QR (ambiente free), fica aguardando
-    } catch (e) {
-      alert("Erro ao iniciar conexão");
-      setStatus("waiting");
+    } catch {
+      setStatus("error");
     }
   }
 
-  function regen() {
-    setQr("");
-    setProgress(100);
-    setStatus("waiting");
-    startConnection();
+  function renderBody() {
+    const barColor =
+      progress > 66 ? "#0ff" : progress > 33 ? "#facc15" : "#f87171";
+
+    if (status === "ready") {
+      return (
+        <>
+          <div style={{ marginBottom: 16, textAlign: "center" }}>
+            {profile ? (
+              <img
+                alt="profile"
+                src={profile}
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: 999,
+                  display: "inline-block",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: 999,
+                  background: "#111",
+                  display: "inline-block",
+                }}
+              />
+            )}
+          </div>
+          <h2 style={{ color: "#34d399", marginBottom: 8, textAlign: "center" }}>
+            Conectado!
+          </h2>
+          {phone && (
+            <p style={{ color: "#ddd", textAlign: "center", marginBottom: 16 }}>
+              Número: <strong style={{ color: "#fff" }}>{phone}</strong>
+            </p>
+          )}
+          <div style={{ textAlign: "center" }}>
+            <button
+              onClick={() => navigate("/")}
+              style={btnPrimary}
+            >
+              Voltar ao Dashboard
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    if (status === "expired") {
+      return (
+        <>
+          <p style={{ color: "#f87171", textAlign: "center", marginBottom: 16 }}>
+            QR Code expirado
+          </p>
+          <div style={{ textAlign: "center" }}>
+            <button onClick={startConnection} style={btnPrimary}>
+              Gerar novo QR Code
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    if (status === "error") {
+      return (
+        <>
+          <p style={{ color: "#f87171", textAlign: "center", marginBottom: 16 }}>
+            Ocorreu um erro ao inicializar a conexão. Tente novamente.
+          </p>
+          <div style={{ textAlign: "center" }}>
+            <button onClick={startConnection} style={btnPrimary}>
+              Tentar novamente
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    // waiting ou qr
+    return (
+      <>
+        <h2 style={{ color: "#fff", textAlign: "center", marginBottom: 16 }}>
+          Escaneie o QR Code
+        </h2>
+        <div
+          style={{
+            background: "#fff",
+            padding: 24,
+            borderRadius: 24,
+            width: 360,
+            height: 360,
+            margin: "0 auto 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {qr ? <QRCode value={qr} size={300} /> : null}
+        </div>
+        <div style={{ width: 540, maxWidth: "90%", margin: "0 auto" }}>
+          <div
+            style={{
+              height: 6,
+              width: "100%",
+              background: "#111827",
+              borderRadius: 999,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progress}%`,
+                background: barColor,
+                transition: "width 100ms linear",
+              }}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 6,
+              color: "#9ca3af",
+              fontSize: 12,
+            }}
+          >
+            <span>Tempo restante</span>
+            <span>{Math.ceil((progress / 100) * (DURATION / 1000))}s</span>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary">
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-xl mx-auto">
-          <div className="instance-card text-center">
-            {status === "waiting" && (
-              <>
-                <h2 className="text-2xl font-bold text-white mb-4">Conectar WhatsApp</h2>
-                <p className="text-gray-400 mb-6">Instância: {instanceId}</p>
-                <button className="btn-primary inline-flex items-center gap-2" onClick={startConnection}>
-                  <Power size={18} /> Iniciar Conexão e Gerar QR Code
-                </button>
-              </>
-            )}
-
-            {status === "generating" && (
-              <>
-                <h2 className="text-2xl font-bold text-white mb-6">Escaneie o QR Code</h2>
-                <div className="bg-white p-6 rounded-2xl inline-block mb-6">
-                  {qr ? <QRCode value={qr} size={256} /> : <div className="w-[256px] h-[256px]" />}
-                </div>
-
-                {/* barra de tempo */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-400">Tempo restante</span>
-                    <span className="text-sm font-bold text-white">
-                      {Math.ceil((progress / 100) * 45)}s
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full" style={{ width: `${progress}%` }} />
-                  </div>
-                  {progress < 33 && (
-                    <p className="text-red-400 text-sm mt-2 flex items-center justify-center gap-2">
-                      <AlertCircle size={16} /> QR Code expirando em breve!
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-
-            {status === "expired" && (
-              <>
-                <div className="inline-block p-8 rounded-full bg-red-500/10 mb-6">
-                  <AlertCircle size={64} className="text-red-400" />
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-4">QR Code expirado</h2>
-                <button className="btn-primary inline-flex items-center gap-2" onClick={regen}>
-                  <RefreshCw size={18} /> Atualizar QR Code
-                </button>
-              </>
-            )}
-
-            {status === "connected" && (
-              <>
-                <div className="inline-block p-8 rounded-full bg-green-500/10 mb-6">
-                  <Check size={64} className="text-green-400" />
-                </div>
-                <h2 className="text-2xl font-bold text-green-400 mb-3">Conectado!</h2>
-                {phone && <p className="text-gray-300">Número: <b className="text-white">{phone}</b></p>}
-                <button className="btn-primary mt-6" onClick={() => navigate("/")}>
-                  Voltar ao Dashboard
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+    <div style={page}>
+      <div style={card}>{renderBody()}</div>
     </div>
   );
 }
+
+const page = {
+  minHeight: "100vh",
+  background: "#0b0f12",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 24,
+};
+const card = {
+  width: 720,
+  maxWidth: "100%",
+  background: "#0d1117",
+  border: "1px solid rgba(0,255,255,.2)",
+  borderRadius: 24,
+  padding: 24,
+  boxShadow: "0 0 32px rgba(0,255,255,.05)",
+};
+const btnPrimary = {
+  background: "#06b6d4",
+  color: "#001014",
+  padding: "12px 20px",
+  borderRadius: 12,
+  border: "none",
+  fontWeight: 700,
+  cursor: "pointer",
+};
