@@ -13,7 +13,10 @@ export async function apiRequest(path, options = {}) {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(txt || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -23,8 +26,15 @@ export function createWebSocket(instanceId, handlers = {}) {
   ws.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
-      if (handlers[msg.type]) handlers[msg.type](msg);
+      const fn =
+        msg.type === "qr" ? handlers.onQR :
+        msg.type === "status" ? handlers.onStatus :
+        msg.type === "phone" ? handlers.onPhone :
+        msg.type === "error" ? handlers.onError : null;
+      if (fn) fn(msg.data ? msg : msg.message || msg);
     } catch {}
   };
+  ws.onerror = (e) => handlers.onError?.(e);
+  ws.onclose = () => handlers.onClose?.();
   return ws;
 }
