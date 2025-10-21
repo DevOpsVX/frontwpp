@@ -1,56 +1,50 @@
-// src/config/api.js
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-const WS_BASE_URL =
-  import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^http/, "ws");
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:10000";
+export const WS_BASE_URL  = import.meta.env.VITE_WS_URL  || "ws://localhost:10000";
 
-// Endpoints REST do backend
-const API_ENDPOINTS = {
-  INSTALLATIONS: `${API_BASE_URL}/api/installations`,
-  CREATE_INSTANCE: `${API_BASE_URL}/api/instances`,
-  DELETE_INSTANCE: (id) => `${API_BASE_URL}/api/instances/${id}`,
-  CONNECT_WHATSAPP: `${API_BASE_URL}/whatsapp/connect`,
-  RESTART_WHATSAPP: (id) => `${API_BASE_URL}/whatsapp/restart/${id}`,
+export const API_ENDPOINTS = {
+  INSTALLATIONS: "/api/installations",
+  CREATE_INSTANCE: "/api/instances",
+  DELETE_INSTANCE: (id) => `/api/instances/${encodeURIComponent(id)}`,
+  CONNECT_WHATSAPP: "/whatsapp/connect",
+  RESTART_WHATSAPP: (id) => `/whatsapp/restart/${encodeURIComponent(id)}`
 };
 
-async function apiRequest(url, options = {}) {
-  const res = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
+export async function apiRequest(path, opts = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    ...opts
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      const j = await res.json();
+      msg = j?.message || JSON.stringify(j);
+    } catch {}
+    throw new Error(msg);
   }
-  const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) return res.json();
-  return res.text();
+  if (res.status === 204) return null;
+  try { return await res.json(); } catch { return null; }
 }
 
-// WebSocket helper
-function createWebSocket(instanceId, handlers = {}) {
-  const ws = new WebSocket(`${WS_BASE_URL.replace(/^http/, "ws")}`);
-  ws.addEventListener("open", () => {
-    ws.send(JSON.stringify({ type: "register", instanceId }));
+export function createWebSocket(instanceId, handlers = {}) {
+  const ws = new WebSocket(WS_BASE_URL.replace(/^http/, "ws"));
+  ws.onopen = () => {
     handlers.onOpen?.();
-  });
-  ws.addEventListener("message", (event) => {
+    // registra a instância neste WS
+    ws.send(JSON.stringify({ type: "register", instanceId }));
+  };
+  ws.onmessage = (ev) => {
     try {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(ev.data);
+      if (data.type === "registered") handlers.onRegistered?.(data);
       if (data.type === "qr") handlers.onQR?.(data.data);
-      else if (data.type === "status") handlers.onStatus?.(data.message);
-      else if (data.type === "phone") handlers.onPhone?.(data.number);
-      else if (data.type === "registered") {
-        // ok
-      }
+      if (data.type === "status") handlers.onStatus?.(data.message);
+      if (data.type === "phone") handlers.onPhone?.(data.number);
     } catch (e) {
       handlers.onError?.(e);
     }
-  });
-  ws.addEventListener("close", () => handlers.onClose?.());
-  ws.addEventListener("error", (e) => handlers.onError?.(e));
+  };
+  ws.onerror = (e) => handlers.onError?.(e);
+  ws.onclose = () => handlers.onClose?.();
   return ws;
 }
-
-export { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket };
