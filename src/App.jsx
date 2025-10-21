@@ -1,78 +1,60 @@
-import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import QRCode from 'react-qr-code';
-import { Plus, Power, Trash2, Copy, Check, RefreshCw, Link2, QrCode as QrCodeIcon, AlertCircle, X } from 'lucide-react';
-import logoVolxo from './logo-volxo.png';
-import { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket } from './config/api';
-import ConnectWhatsApp from './ConnectWhatsApp';
+// App.jsx
+import { useState, useEffect, useRef } from "react";
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams } from "react-router-dom";
+import QRCode from "react-qr-code";
+import { Plus, Power, Trash2, Copy, Check, RefreshCw, Link2, QrCode as QrCodeIcon, AlertCircle, X } from "lucide-react";
+import logoVolxo from "./logo-volxo.png";
+import { API_BASE_URL, WS_BASE_URL, API_ENDPOINTS, apiRequest, createWebSocket } from "./config/api";
+import ConnectWhatsApp from "./ConnectWhatsApp";
 
 // ========================================
 // CONFIGURAÇÃO OAUTH GHL
 // ========================================
 const GHL_OAUTH_CONFIG = {
-  clientId: '68f1fa89d9f07703ad254978-mgukpyog', // Client ID do app GHL (mesmo do backend)
-  redirectUri: 'https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback',
-  authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation'
+  clientId: "68f1fa89d9f07703ad254978-mgukpyog", // seu Client ID
+  redirectUri: "https://volxowppconect.onrender.com/leadconnectorhq/oauth/callback",
+  authUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
 };
 
 // ========================================
-// COMPONENTE: MODAL DE CRIAR INSTÂNCIA
+// MODAL: CRIAR INSTÂNCIA
 // ========================================
 const CreateInstanceModal = ({ isOpen, onClose, onCreateInstance }) => {
-  const [instanceName, setInstanceName] = useState('');
-  const [error, setError] = useState('');
+  const [instanceName, setInstanceName] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setInstanceName('');
-      setError('');
+      setInstanceName("");
+      setError("");
       setIsLoading(false);
     }
   }, [isOpen]);
 
-  const validateInstanceName = (name) => {
-    // Apenas letras minúsculas, números e hífens
-    const regex = /^[a-z0-9-]+$/;
-    return regex.test(name);
-  };
+  const validateInstanceName = (name) => /^[a-z0-9-]+$/.test(name);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!instanceName.trim()) {
-      setError('O nome da instância é obrigatório');
-      return;
-    }
 
-    if (!validateInstanceName(instanceName)) {
-      setError('Use apenas letras minúsculas, números e hífens (-)');
-      return;
-    }
-
-    if (instanceName.length < 3) {
-      setError('O nome deve ter no mínimo 3 caracteres');
-      return;
-    }
-
-    if (instanceName.length > 50) {
-      setError('O nome deve ter no máximo 50 caracteres');
-      return;
-    }
+    if (!instanceName.trim()) return setError("O nome da instância é obrigatório");
+    if (!validateInstanceName(instanceName)) return setError("Use apenas letras minúsculas, números e hífens (-)");
+    if (instanceName.length < 3) return setError("O nome deve ter no mínimo 3 caracteres");
+    if (instanceName.length > 50) return setError("O nome deve ter no máximo 50 caracteres");
 
     setIsLoading(true);
     try {
       await onCreateInstance(instanceName);
     } catch (err) {
-      setError(err.message || 'Erro ao criar instância');
+      setError(err.message || "Erro ao criar instância");
       setIsLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
-    const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
     setInstanceName(value);
-    setError('');
+    setError("");
   };
 
   if (!isOpen) return null;
@@ -82,20 +64,14 @@ const CreateInstanceModal = ({ isOpen, onClose, onCreateInstance }) => {
       <div className="bg-bg-card border border-primary/30 rounded-2xl p-8 max-w-md w-full neon-glow">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-primary neon-text">Nova Instância</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-800 rounded-lg"
-            disabled={isLoading}
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-800 rounded-lg" disabled={isLoading}>
             <X size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-bold text-white mb-2">
-              Nome da Instância *
-            </label>
+            <label className="block text-sm font-bold text-white mb-2">Nome da Instância *</label>
             <input
               type="text"
               value={instanceName}
@@ -105,9 +81,7 @@ const CreateInstanceModal = ({ isOpen, onClose, onCreateInstance }) => {
               autoFocus
               disabled={isLoading}
             />
-            <p className="text-xs text-gray-500 mt-2">
-              Apenas letras minúsculas, números e hífens (-)
-            </p>
+            <p className="text-xs text-gray-500 mt-2">Apenas letras minúsculas, números e hífens (-)</p>
             {error && (
               <div className="flex items-center gap-2 mt-3 text-red-400 text-sm">
                 <AlertCircle size={16} />
@@ -117,20 +91,11 @@ const CreateInstanceModal = ({ isOpen, onClose, onCreateInstance }) => {
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary flex-1"
-              disabled={isLoading}
-            >
+            <button type="button" onClick={onClose} className="btn-secondary flex-1" disabled={isLoading}>
               Cancelar
             </button>
-            <button
-              type="submit"
-              className="btn-primary flex-1"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Processando...' : 'Continuar para Login GHL'}
+            <button type="submit" className="btn-primary flex-1" disabled={isLoading}>
+              {isLoading ? "Processando..." : "Continuar para Login GHL"}
             </button>
           </div>
         </form>
@@ -140,16 +105,15 @@ const CreateInstanceModal = ({ isOpen, onClose, onCreateInstance }) => {
 };
 
 // ========================================
-// COMPONENTE: DASHBOARD (HOME)
+// DASHBOARD
 // ========================================
 const Dashboard = () => {
   const [instances, setInstances] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Carregar instâncias ao montar o componente
   useEffect(() => {
     loadInstances();
   }, []);
@@ -157,109 +121,93 @@ const Dashboard = () => {
   const loadInstances = async () => {
     setIsLoading(true);
     try {
-      // Tentar carregar do backend (Supabase)
       const data = await apiRequest(API_ENDPOINTS.INSTALLATIONS);
-      
-      // Mapear dados do Supabase para o formato do frontend
-      const mappedInstances = data.map(item => ({
-        id: item.location_id,
-        name: item.instance_name || item.location_id, // Usar instance_name, fallback para location_id
-        status: item.access_token ? 'connected' : 'pending',
+
+      // Mapeia para o formato da UI
+      const mapped = (data || []).map((item) => ({
+        id: item.instance_name,                      // sempre o slug
+        name: item.instance_name,
+        locationId: item.instance_id || null,        // locationId do GHL (apenas informativo)
+        status: item.access_token ? "connected" : "pending",
         createdAt: item.updated_at || new Date().toISOString(),
-        phone: item.phone_number || null
+        phone: item.phone_number || null,
       }));
-      
-      setInstances(mappedInstances);
+
+      setInstances(mapped);
+      localStorage.setItem("volxo_whatsapp_instances", JSON.stringify(mapped));
     } catch (error) {
-      console.error('Erro ao carregar instâncias:', error);
-      
-      // Fallback: carregar do localStorage
-      const stored = localStorage.getItem('volxo_whatsapp_instances');
-      if (stored) {
-        setInstances(JSON.parse(stored));
-      }
+      console.error("Erro ao carregar instâncias:", error);
+      // fallback local
+      const stored = localStorage.getItem("volxo_whatsapp_instances");
+      if (stored) setInstances(JSON.parse(stored));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCreateInstance = async (name) => {
-    try {
-      // Verificar se já existe
-      const exists = instances.some(inst => inst.name === name);
-      if (exists) {
-        throw new Error('Já existe uma instância com este nome');
-      }
-
-      // Salvar nome temporariamente no localStorage para usar após OAuth
-      localStorage.setItem('volxo_pending_instance_name', name);
-
-      // Construir URL de autorização OAuth do GoHighLevel
-      const state = btoa(JSON.stringify({ instanceName: name, timestamp: Date.now() }));
-      // Scopes necessários para o WhatsApp (formato GHL)
-      const scopes = [
-        'conversations.readonly',
-        'conversations.write',
-        'conversations/message.readonly',
-        'conversations/message.write',
-        'contacts.readonly',
-        'contacts.write'
-      ].join(' ');
-      
-      const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(GHL_OAUTH_CONFIG.redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}`;
-
-      // Redirecionar para OAuth do GHL
-      window.location.href = oauthUrl;
-
-    } catch (error) {
-      throw error;
+    // Evita duplicado
+    if (instances.some((i) => i.name === name)) {
+      throw new Error("Já existe uma instância com este nome");
     }
+
+    // salva para usar após OAuth (caso necessário)
+    localStorage.setItem("volxo_pending_instance_name", name);
+
+    // Gera state e scopes
+    const state = btoa(JSON.stringify({ instanceName: name, ts: Date.now() }));
+    const scopes = [
+      "oauth.write",
+      "oauth.readonly",
+      "locations.readonly",
+      "locations.write",
+      "contacts.readonly",
+      "contacts.write",
+      "conversations.readonly",
+      "conversations.write",
+      "conversations/message.readonly",
+      "conversations/message.write",
+      "numberpools.read",
+      "phonennumbers.read"
+    ].join(" ");
+
+    const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(
+      GHL_OAUTH_CONFIG.redirectUri
+    )}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}`;
+
+    window.location.href = oauthUrl;
   };
 
   const handleDeleteInstance = async (instanceId) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta instância?')) {
-      return;
-    }
+    if (!window.confirm("Tem certeza que deseja excluir esta instância?")) return;
 
     try {
-      // Tentar deletar no backend
-      try {
-        await apiRequest(API_ENDPOINTS.DELETE_INSTANCE(instanceId), {
-          method: 'DELETE'
-        });
-      } catch (apiError) {
-        console.warn('Backend não disponível:', apiError);
-      }
-
-      // Remover da lista local
-      const updatedInstances = instances.filter(inst => inst.id !== instanceId);
-      setInstances(updatedInstances);
-      localStorage.setItem('volxo_whatsapp_instances', JSON.stringify(updatedInstances));
-      
-    } catch (error) {
-      console.error('Erro ao excluir instância:', error);
-      alert('Erro ao excluir instância');
+      await apiRequest(API_ENDPOINTS.DELETE_INSTANCE(instanceId), { method: "DELETE" });
+      const updated = instances.filter((i) => i.id !== instanceId);
+      setInstances(updated);
+      localStorage.setItem("volxo_whatsapp_instances", JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao excluir instância.");
     }
   };
 
   const handleRestartInstance = async (instanceId) => {
     try {
-      await apiRequest(API_ENDPOINTS.RESTART_WHATSAPP(instanceId), {
-        method: 'POST'
-      });
-      alert('Instância reiniciada com sucesso!');
+      await apiRequest(API_ENDPOINTS.RESTART_WHATSAPP(instanceId), { method: "POST" });
+      alert("Instância reiniciada com sucesso!");
       loadInstances();
-    } catch (error) {
-      console.error('Erro ao reiniciar instância:', error);
-      alert('Erro ao reiniciar instância. Funcionalidade ainda não implementada no backend.');
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao reiniciar instância.");
     }
   };
 
-  const filteredInstances = instances.filter(inst =>
-    (inst.name || inst.id || '').toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = instances.filter((inst) =>
+    (inst.name || inst.id || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const activeInstances = instances.filter(inst => inst.status === 'connected').length;
+  const active = instances.filter((i) => i.status === "connected").length;
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -273,19 +221,16 @@ const Dashboard = () => {
               <p className="text-sm text-gray-400">Gerenciador de Instâncias WhatsApp</p>
             </div>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary flex items-center gap-2"
-          >
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
             <Plus size={20} />
             Nova Instância
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="container mx-auto px-4 py-8">
-        {/* Search and Stats */}
+        {/* Search & Stats */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="flex-1">
             <input
@@ -303,12 +248,12 @@ const Dashboard = () => {
             </div>
             <div className="stat-card">
               <span className="text-gray-400">Ativas:</span>
-              <span className="text-2xl font-bold text-green-400">{activeInstances}</span>
+              <span className="text-2xl font-bold text-green-400">{active}</span>
             </div>
           </div>
         </div>
 
-        {/* Instances Grid */}
+        {/* Grid */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
@@ -316,58 +261,45 @@ const Dashboard = () => {
               <p className="text-gray-400">Carregando instâncias...</p>
             </div>
           </div>
-        ) : filteredInstances.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="text-center py-20">
             <div className="inline-block p-8 rounded-full bg-primary/10 mb-6">
               <Plus size={64} className="text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-4">Nenhuma instância criada</h2>
             <p className="text-gray-400 mb-8">Comece criando sua primeira instância WhatsApp</p>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="btn-primary inline-flex items-center gap-2"
-            >
+            <button onClick={() => setIsModalOpen(true)} className="btn-primary inline-flex items-center gap-2">
               <Plus size={20} />
               Criar Primeira Instância
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredInstances.map((instance) => (
+            {filtered.map((instance) => (
               <div key={instance.id} className="instance-card">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">{instance.name}</h3>
-                    <p className="text-xs text-gray-500">{instance.id}</p>
-                    {instance.phone && (
-                      <p className="text-sm text-gray-400 mt-1">📱 {instance.phone}</p>
+                    {/* Mostra locationId (info) */}
+                    {instance.locationId && (
+                      <p className="text-xs text-gray-500">locationId: {instance.locationId}</p>
                     )}
+                    {instance.phone && <p className="text-sm text-gray-400 mt-1">📱 {instance.phone}</p>}
                   </div>
-                  <span className={`status-badge ${instance.status === 'connected' ? 'status-connected' : 'status-pending'}`}>
-                    {instance.status === 'connected' ? 'Conectado' : 'Pendente'}
+                  <span className={`status-badge ${instance.status === "connected" ? "status-connected" : "status-pending"}`}>
+                    {instance.status === "connected" ? "Conectado" : "Pendente"}
                   </span>
                 </div>
 
                 <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={() => navigate(`/qrcode/${instance.id}`)}
-                    className="btn-primary flex-1 flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => navigate(`/qrcode/${instance.id}`)} className="btn-primary flex-1 flex items-center justify-center gap-2">
                     <QrCodeIcon size={16} />
                     Conectar
                   </button>
-                  <button
-                    onClick={() => handleRestartInstance(instance.id)}
-                    className="btn-icon"
-                    title="Reiniciar"
-                  >
+                  <button onClick={() => handleRestartInstance(instance.id)} className="btn-icon" title="Reiniciar">
                     <RefreshCw size={18} />
                   </button>
-                  <button
-                    onClick={() => handleDeleteInstance(instance.id)}
-                    className="btn-icon-danger"
-                    title="Excluir"
-                  >
+                  <button onClick={() => handleDeleteInstance(instance.id)} className="btn-icon-danger" title="Excluir">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -378,146 +310,118 @@ const Dashboard = () => {
       </main>
 
       {/* Modal */}
-      <CreateInstanceModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onCreateInstance={handleCreateInstance}
-      />
+      <CreateInstanceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onCreateInstance={handleCreateInstance} />
     </div>
   );
 };
 
 // ========================================
-// COMPONENTE: PÁGINA DE QR CODE
+// PÁGINA: QR CODE
 // ========================================
 const QRCodePage = () => {
-  const { instanceId } = useParams();
+  const { instanceId } = useParams(); // <- slug
   const navigate = useNavigate();
-  const [qrCode, setQrCode] = useState('');
-  const [status, setStatus] = useState('waiting'); // waiting, generating, connected, expired
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [qrCode, setQrCode] = useState("");
+  const [status, setStatus] = useState("waiting"); // waiting, generating, connected, expired
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [progress, setProgress] = useState(100);
   const [copied, setCopied] = useState(false);
-  const [connectionLink, setConnectionLink] = useState('');
+  const [connectionLink, setConnectionLink] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const wsRef = useRef(null);
   const timerRef = useRef(null);
   const redirectTimerRef = useRef(null);
 
   useEffect(() => {
-    // Gerar link de conexão
     const link = `${window.location.origin}/qrcode/${instanceId}`;
     setConnectionLink(link);
 
-    // Conectar WebSocket (quando implementado no backend)
+    // Conecta WS
     try {
       wsRef.current = createWebSocket(instanceId, {
-        onOpen: () => {
-          console.log('WebSocket conectado');
-        },
+        onOpen: () => console.log("WebSocket conectado"),
         onQR: (qrData) => {
           setQrCode(qrData);
-          setStatus('generating');
+          setStatus("generating");
           startTimer();
         },
         onStatus: (message) => {
-          const msg = (message || '').toLowerCase();
-          if (msg.includes('conectado') || msg.includes('pronto')) {
-            setStatus('connected');
+          const msg = (message || "").toLowerCase();
+          if (msg.includes("ready") || msg.includes("pronto") || msg.includes("conectado")) {
+            setStatus("connected");
           }
         },
         onPhone: (number) => {
           setPhoneNumber(number);
-          setStatus('connected');
+          setStatus("connected");
           handleConnectionSuccess(number);
         },
-        onError: (error) => {
-          console.error('Erro no WebSocket:', error);
-        },
-        onClose: () => {
-          console.log('WebSocket desconectado');
-        }
+        onError: (err) => console.error("Erro no WS:", err),
+        onClose: () => console.log("WS desconectado"),
       });
-    } catch (error) {
-      console.warn('WebSocket não disponível:', error);
+    } catch (err) {
+      console.warn("WS não disponível:", err);
     }
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current);
-      }
+      if (wsRef.current) wsRef.current.close();
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     };
   }, [instanceId]);
 
-  const handleConnectionSuccess = (phone) => {
+  const handleConnectionSuccess = () => {
     setShowSuccessModal(true);
-    
-    // Redirecionar após 3 segundos
-    redirectTimerRef.current = setTimeout(() => {
-      navigate('/');
-    }, 3000);
+    redirectTimerRef.current = setTimeout(() => navigate("/"), 3000);
   };
 
   const startTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
 
     setProgress(100);
-    const duration = 45000; // 45 segundos
+    const duration = 45000; // 45s
     const interval = 100;
     const decrement = (interval / duration) * 100;
 
     timerRef.current = setInterval(() => {
       setProgress((prev) => {
-        const newProgress = prev - decrement;
-        if (newProgress <= 0) {
+        const next = prev - decrement;
+        if (next <= 0) {
           clearInterval(timerRef.current);
-          setStatus('expired');
+          setStatus("expired");
           return 0;
         }
-        return newProgress;
+        return next;
       });
     }, interval);
   };
 
   const handleStartConnection = async () => {
     try {
-      setStatus('generating');
-      
-      // Fazer requisição para iniciar conexão
-      const response = await apiRequest(API_ENDPOINTS.CONNECT_WHATSAPP, {
-        method: 'POST',
-        body: JSON.stringify({ locationId: instanceId })
+      setStatus("generating");
+      // Inicia conexão no backend — ENVIA O SLUG como instanceId
+      await apiRequest(API_ENDPOINTS.CONNECT_WHATSAPP, {
+        method: "POST",
+        body: JSON.stringify({ instanceId }), // <- CORRETO
       });
 
-      console.log('Resposta do backend:', response);
-
-      // Se WebSocket não estiver disponível, simular QR Code
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        // Gerar QR Code simulado para demonstração
+      // Se o WS ainda não conectou, mostramos um QR simulado (fallback)
+      if (!wsRef.current || wsRef.current.readyState !== 1) {
         const simulatedQR = `whatsapp://connect/${instanceId}/${Date.now()}`;
         setQrCode(simulatedQR);
         startTimer();
       }
-
     } catch (error) {
-      console.error('Erro ao iniciar conexão:', error);
-      alert('Erro ao iniciar conexão. Verifique se o backend está rodando.');
-      setStatus('waiting');
+      console.error("Erro ao iniciar conexão:", error);
+      alert("Erro ao iniciar conexão. Verifique se o backend está rodando.");
+      setStatus("waiting");
     }
   };
 
   const handleRegenerateQR = () => {
-    setQrCode('');
+    setQrCode("");
     setProgress(100);
-    setStatus('waiting');
+    setStatus("waiting");
     handleStartConnection();
   };
 
@@ -528,15 +432,15 @@ const QRCodePage = () => {
   };
 
   const getProgressColor = () => {
-    if (progress > 66) return 'bg-primary';
-    if (progress > 33) return 'bg-yellow-400';
-    return 'bg-red-400';
+    if (progress > 66) return "bg-primary";
+    if (progress > 33) return "bg-yellow-400";
+    return "bg-red-400";
   };
 
   const getProgressShadow = () => {
-    if (progress > 66) return 'shadow-[0_0_10px_rgba(0,255,255,0.5)]';
-    if (progress > 33) return 'shadow-[0_0_10px_rgba(250,204,21,0.5)]';
-    return 'shadow-[0_0_10px_rgba(248,113,113,0.5)]';
+    if (progress > 66) return "shadow-[0_0_10px_rgba(0,255,255,0.5)]";
+    if (progress > 33) return "shadow-[0_0_10px_rgba(250,204,21,0.5)]";
+    return "shadow-[0_0_10px_rgba(248,113,113,0.5)]";
   };
 
   return (
@@ -551,49 +455,38 @@ const QRCodePage = () => {
               <p className="text-sm text-gray-400">Instância: {instanceId}</p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="btn-secondary"
-          >
+          <button onClick={() => navigate("/")} className="btn-secondary">
             Voltar ao Dashboard
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
-          {/* Status Card */}
           <div className="instance-card text-center">
-            {status === 'waiting' && (
+            {status === "waiting" && (
               <>
                 <div className="inline-block p-8 rounded-full bg-primary/10 mb-6">
                   <QrCodeIcon size={64} className="text-primary" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-4">Pronto para Conectar</h2>
-                <p className="text-gray-400 mb-8">
-                  Clique no botão abaixo para gerar o QR Code e conectar sua conta WhatsApp
-                </p>
-                <button
-                  onClick={handleStartConnection}
-                  className="btn-primary inline-flex items-center gap-2"
-                >
+                <p className="text-gray-400 mb-8">Clique para gerar o QR Code e conectar seu WhatsApp</p>
+                <button onClick={handleStartConnection} className="btn-primary inline-flex items-center gap-2">
                   <Power size={20} />
                   Iniciar Conexão e Gerar QR Code
                 </button>
               </>
             )}
 
-            {status === 'generating' && qrCode && (
+            {status === "generating" && qrCode && (
               <>
                 <h2 className="text-2xl font-bold text-white mb-6">Escaneie o QR Code</h2>
-                
-                {/* QR Code */}
                 <div className="bg-white p-6 rounded-2xl inline-block mb-6">
                   <QRCode value={qrCode} size={256} />
                 </div>
 
-                {/* Progress Bar */}
+                {/* Progress */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-400">Tempo restante</span>
@@ -613,32 +506,25 @@ const QRCodePage = () => {
                   )}
                 </div>
 
-                <p className="text-gray-400 text-sm">
-                  Abra o WhatsApp no seu celular e escaneie este código
-                </p>
+                <p className="text-gray-400 text-sm">Abra o WhatsApp e escaneie este código</p>
               </>
             )}
 
-            {status === 'expired' && (
+            {status === "expired" && (
               <>
                 <div className="inline-block p-8 rounded-full bg-red-500/10 mb-6">
                   <AlertCircle size={64} className="text-red-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-4">QR Code Expirado</h2>
-                <p className="text-gray-400 mb-8">
-                  O tempo limite foi atingido. Clique no botão abaixo para gerar um novo código
-                </p>
-                <button
-                  onClick={handleRegenerateQR}
-                  className="btn-primary inline-flex items-center gap-2"
-                >
+                <p className="text-gray-400 mb-8">Clique para gerar um novo código</p>
+                <button onClick={handleRegenerateQR} className="btn-primary inline-flex items-center gap-2">
                   <RefreshCw size={20} />
                   Regenerar QR Code
                 </button>
               </>
             )}
 
-            {status === 'connected' && !showSuccessModal && (
+            {status === "connected" && !showSuccessModal && (
               <>
                 <div className="inline-block p-8 rounded-full bg-green-500/10 mb-6">
                   <Check size={64} className="text-green-400" />
@@ -649,39 +535,28 @@ const QRCodePage = () => {
                     Número conectado: <span className="text-white font-bold">{phoneNumber}</span>
                   </p>
                 )}
-                <button
-                  onClick={() => navigate('/')}
-                  className="btn-primary"
-                >
+                <button onClick={() => navigate("/")} className="btn-primary">
                   Voltar ao Dashboard
                 </button>
               </>
             )}
           </div>
 
-          {/* Connection Link */}
-          {status !== 'connected' && (
+          {/* Link de conexão (white label) */}
+          {status !== "connected" && (
             <div className="mt-8 instance-card">
               <div className="flex items-center gap-3 mb-4">
                 <Link2 className="text-primary" size={24} />
                 <h3 className="text-lg font-bold text-white">Link de Conexão</h3>
               </div>
               <p className="text-sm text-gray-400 mb-4">
-                Compartilhe este link com seu cliente para que ele possa conectar o WhatsApp dele
+                Envie este link para o cliente conectar o WhatsApp dele (acesso apenas à tela de escanear).
               </p>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={connectionLink}
-                  readOnly
-                  className="input-field flex-1"
-                />
-                <button
-                  onClick={handleCopyLink}
-                  className="btn-primary flex items-center gap-2"
-                >
+                <input type="text" value={connectionLink} readOnly className="input-field flex-1" />
+                <button onClick={handleCopyLink} className="btn-primary flex items-center gap-2">
                   {copied ? <Check size={18} /> : <Copy size={18} />}
-                  {copied ? 'Copiado!' : 'Copiar'}
+                  {copied ? "Copiado!" : "Copiar"}
                 </button>
               </div>
             </div>
@@ -702,13 +577,11 @@ const QRCodePage = () => {
                 Número: <span className="text-white font-bold">{phoneNumber}</span>
               </p>
             )}
-            <p className="text-gray-400 mb-8">
-              Redirecionando para o dashboard...
-            </p>
+            <p className="text-gray-400 mb-8">Redirecionando para o dashboard...</p>
             <div className="flex gap-2 justify-center">
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
           </div>
         </div>
@@ -718,7 +591,7 @@ const QRCodePage = () => {
 };
 
 // ========================================
-// COMPONENTE: APP PRINCIPAL
+// APP
 // ========================================
 function App() {
   return (
@@ -733,4 +606,3 @@ function App() {
 }
 
 export default App;
-
