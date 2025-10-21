@@ -163,7 +163,7 @@ const Dashboard = () => {
       // Mapear dados do Supabase para o formato do frontend
       const mappedInstances = data.map(item => ({
         id: item.location_id,
-        name: item.location_id, // Usar location_id como nome
+        name: item.instance_name || item.location_id, // Usar instance_name, fallback para location_id
         status: item.access_token ? 'connected' : 'pending',
         createdAt: item.updated_at || new Date().toISOString(),
         phone: item.phone_number || null
@@ -256,7 +256,7 @@ const Dashboard = () => {
   };
 
   const filteredInstances = instances.filter(inst =>
-    inst.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (inst.name || inst.id || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const activeInstances = instances.filter(inst => inst.status === 'connected').length;
@@ -421,7 +421,8 @@ const QRCodePage = () => {
           startTimer();
         },
         onStatus: (message) => {
-          if (message.toLowerCase().includes('conectado') || message.toLowerCase().includes('pronto')) {
+          const msg = (message || '').toLowerCase();
+          if (msg.includes('conectado') || msg.includes('pronto')) {
             setStatus('connected');
           }
         },
