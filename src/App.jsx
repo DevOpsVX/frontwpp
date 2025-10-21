@@ -1,21 +1,24 @@
-import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
-import { apiRequest, API_ENDPOINTS } from "./config/api";
+import { useEffect, useState } from "react";
 import ConnectWhatsApp from "./ConnectWhatsApp";
+import { apiRequest, API_ENDPOINTS } from "./config/api";
 
 function Dashboard() {
   const [instances, setInstances] = useState([]);
   const navigate = useNavigate();
 
   async function load() {
-    const data = await apiRequest(API_ENDPOINTS.INSTALLATIONS);
-    setInstances(data || []);
+    try {
+      const data = await apiRequest(API_ENDPOINTS.INSTALLATIONS);
+      setInstances(data || []);
+    } catch (e) {
+      console.error(e);
+    }
   }
-
   useEffect(() => { load(); }, []);
 
   async function createInstance() {
-    const name = prompt("Nome da instância:") || "";
+    const name = prompt("Nome da instância (minúsculas, números e hífens):");
     if (!name) return;
     const slug = name.toLowerCase().replace(/[^a-z0-9-]/g, "");
     await apiRequest(API_ENDPOINTS.CREATE_INSTANCE, {
@@ -23,12 +26,12 @@ function Dashboard() {
       body: JSON.stringify({ name: slug }),
     });
 
-    const state = btoa(JSON.stringify({ instanceName: slug }));
-    const scopes =
-      import.meta.env.VITE_GHL_SCOPES ||
-      "conversations.readonly conversations.write conversations/message.readonly conversations/message.write contacts.readonly contacts.write locations.readonly";
+    // OAuth GHL com scope
+    const state = btoa(JSON.stringify({ instanceName: slug, t: Date.now() }));
+    const scopes = (import.meta.env.VITE_GHL_SCOPES ||
+      "conversations.readonly conversations.write conversations/message.readonly conversations/message.write contacts.readonly contacts.write locations.readonly").trim();
 
-    const authUrl =
+    const url =
       `${import.meta.env.VITE_GHL_AUTH_URL}` +
       `?client_id=${encodeURIComponent(import.meta.env.VITE_GHL_CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(import.meta.env.VITE_GHL_REDIRECT_URI)}` +
@@ -36,33 +39,42 @@ function Dashboard() {
       `&scope=${encodeURIComponent(scopes)}` +
       `&state=${encodeURIComponent(state)}`;
 
-    window.location.href = authUrl;
+    window.location.href = url;
   }
 
-  async function del(id) {
+  async function removeInstance(id) {
     if (!confirm("Excluir instância?")) return;
     await apiRequest(API_ENDPOINTS.DELETE_INSTANCE(id), { method: "DELETE" });
     load();
   }
 
   return (
-    <div style={bg}>
-      <header style={header}>
-        <h1 style={title}>VolxoWPP</h1>
-        <button onClick={createInstance} style={btn}>
+    <div style={{ background: "#000", minHeight: "100vh", color: "#fff" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", padding: 16 }}>
+        <h1 style={{ color: "#0ff" }}>VolxoWPP</h1>
+        <button onClick={createInstance} style={{ background: "#0ff", border: "none", padding: "8px 14px", borderRadius: 10 }}>
           + Nova Instância
         </button>
       </header>
-      <main style={main}>
-        {instances.map((i) => (
-          <div key={i.instance_id} style={card}>
-            <h3>{i.instance_name}</h3>
-            <p>{i.phone_number || "Aguardando conexão"}</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => navigate(`/connect/${i.instance_id}`)} style={btn2}>
+
+      <main style={{ display: "grid", gap: 16, padding: 16, gridTemplateColumns: "repeat(auto-fill, 260px)" }}>
+        {instances.map((it) => (
+          <div key={it.instance_id} style={{ background: "#0d1117", padding: 16, borderRadius: 12 }}>
+            <h3 style={{ margin: "4px 0" }}>{it.instance_name || it.instance_id}</h3>
+            <p style={{ color: "#a1a1aa", margin: "6px 0 14px" }}>
+              {it.phone_number ? `📱 ${it.phone_number}` : "Aguardando conexão"}
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => navigate(`/connect/${it.instance_id}`)}
+                style={{ background: "#06b6d4", border: "none", padding: "8px 12px", borderRadius: 8 }}
+              >
                 Conectar
               </button>
-              <button onClick={() => del(i.instance_id)} style={delBtn}>
+              <button
+                onClick={() => removeInstance(it.instance_id)}
+                style={{ background: "#ef4444", border: "none", padding: "8px 12px", borderRadius: 8 }}
+              >
                 Excluir
               </button>
             </div>
@@ -83,12 +95,3 @@ export default function App() {
     </Router>
   );
 }
-
-const bg = { background: "#000", minHeight: "100vh", color: "#fff" };
-const header = { display: "flex", justifyContent: "space-between", padding: 20 };
-const title = { color: "#0ff" };
-const main = { display: "grid", gap: 20, padding: 20, gridTemplateColumns: "repeat(auto-fill, 250px)" };
-const card = { background: "#0d1117", padding: 20, borderRadius: 10 };
-const btn = { background: "#0ff", border: "none", padding: "10px 15px", borderRadius: 8, cursor: "pointer" };
-const btn2 = { ...btn, background: "#06b6d4" };
-const delBtn = { ...btn, background: "#ef4444" };
