@@ -123,11 +123,10 @@ const Dashboard = () => {
     try {
       const data = await apiRequest(API_ENDPOINTS.INSTALLATIONS);
 
-      // Mapeia para o formato da UI
       const mapped = (data || []).map((item) => ({
-        id: item.instance_name,                      // sempre o slug
+        id: item.instance_name,                 // SEMPRE o slug
         name: item.instance_name,
-        locationId: item.instance_id || null,        // locationId do GHL (apenas informativo)
+        locationId: item.instance_id || null,   // apenas informativo
         status: item.access_token ? "connected" : "pending",
         createdAt: item.updated_at || new Date().toISOString(),
         phone: item.phone_number || null,
@@ -137,7 +136,6 @@ const Dashboard = () => {
       localStorage.setItem("volxo_whatsapp_instances", JSON.stringify(mapped));
     } catch (error) {
       console.error("Erro ao carregar instâncias:", error);
-      // fallback local
       const stored = localStorage.getItem("volxo_whatsapp_instances");
       if (stored) setInstances(JSON.parse(stored));
     } finally {
@@ -146,19 +144,19 @@ const Dashboard = () => {
   };
 
   const handleCreateInstance = async (name) => {
-    // Evita duplicado
+    // Evita duplicado na UI
     if (instances.some((i) => i.name === name)) {
       throw new Error("Já existe uma instância com este nome");
     }
 
-    // salva para usar após OAuth (caso necessário)
     localStorage.setItem("volxo_pending_instance_name", name);
 
-    // Gera state e scopes
     const state = btoa(JSON.stringify({ instanceName: name, ts: Date.now() }));
+
+    // ⬇⬇ SCOPES VÁLIDOS (sem phone/numberpools)
     const scopes = [
-      "oauth.write",
       "oauth.readonly",
+      "oauth.write",
       "locations.readonly",
       "locations.write",
       "contacts.readonly",
@@ -167,8 +165,6 @@ const Dashboard = () => {
       "conversations.write",
       "conversations/message.readonly",
       "conversations/message.write",
-      "numberpools.read",
-      "phonennumbers.read"
     ].join(" ");
 
     const oauthUrl = `${GHL_OAUTH_CONFIG.authUrl}?client_id=${GHL_OAUTH_CONFIG.clientId}&redirect_uri=${encodeURIComponent(
@@ -180,7 +176,6 @@ const Dashboard = () => {
 
   const handleDeleteInstance = async (instanceId) => {
     if (!window.confirm("Tem certeza que deseja excluir esta instância?")) return;
-
     try {
       await apiRequest(API_ENDPOINTS.DELETE_INSTANCE(instanceId), { method: "DELETE" });
       const updated = instances.filter((i) => i.id !== instanceId);
@@ -280,7 +275,6 @@ const Dashboard = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">{instance.name}</h3>
-                    {/* Mostra locationId (info) */}
                     {instance.locationId && (
                       <p className="text-xs text-gray-500">locationId: {instance.locationId}</p>
                     )}
@@ -319,10 +313,10 @@ const Dashboard = () => {
 // PÁGINA: QR CODE
 // ========================================
 const QRCodePage = () => {
-  const { instanceId } = useParams(); // <- slug
+  const { instanceId } = useParams(); // slug
   const navigate = useNavigate();
   const [qrCode, setQrCode] = useState("");
-  const [status, setStatus] = useState("waiting"); // waiting, generating, connected, expired
+  const [status, setStatus] = useState("waiting");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [progress, setProgress] = useState(100);
   const [copied, setCopied] = useState(false);
@@ -336,7 +330,6 @@ const QRCodePage = () => {
     const link = `${window.location.origin}/qrcode/${instanceId}`;
     setConnectionLink(link);
 
-    // Conecta WS
     try {
       wsRef.current = createWebSocket(instanceId, {
         onOpen: () => console.log("WebSocket conectado"),
@@ -354,7 +347,7 @@ const QRCodePage = () => {
         onPhone: (number) => {
           setPhoneNumber(number);
           setStatus("connected");
-          handleConnectionSuccess(number);
+          handleConnectionSuccess();
         },
         onError: (err) => console.error("Erro no WS:", err),
         onClose: () => console.log("WS desconectado"),
@@ -377,9 +370,8 @@ const QRCodePage = () => {
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-
     setProgress(100);
-    const duration = 45000; // 45s
+    const duration = 45000;
     const interval = 100;
     const decrement = (interval / duration) * 100;
 
@@ -399,13 +391,11 @@ const QRCodePage = () => {
   const handleStartConnection = async () => {
     try {
       setStatus("generating");
-      // Inicia conexão no backend — ENVIA O SLUG como instanceId
       await apiRequest(API_ENDPOINTS.CONNECT_WHATSAPP, {
         method: "POST",
-        body: JSON.stringify({ instanceId }), // <- CORRETO
+        body: JSON.stringify({ instanceId }), // ENVIA o slug
       });
 
-      // Se o WS ainda não conectou, mostramos um QR simulado (fallback)
       if (!wsRef.current || wsRef.current.readyState !== 1) {
         const simulatedQR = `whatsapp://connect/${instanceId}/${Date.now()}`;
         setQrCode(simulatedQR);
@@ -441,11 +431,10 @@ const QRCodePage = () => {
     if (progress > 66) return "shadow-[0_0_10px_rgba(0,255,255,0.5)]";
     if (progress > 33) return "shadow-[0_0_10px_rgba(250,204,21,0.5)]";
     return "shadow-[0_0_10px_rgba(248,113,113,0.5)]";
-  };
+    };
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* Header */}
       <header className="border-b border-gray-800 bg-bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -461,7 +450,6 @@ const QRCodePage = () => {
         </div>
       </header>
 
-      {/* Main */}
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
           <div className="instance-card text-center">
@@ -486,7 +474,6 @@ const QRCodePage = () => {
                   <QRCode value={qrCode} size={256} />
                 </div>
 
-                {/* Progress */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-400">Tempo restante</span>
@@ -542,7 +529,6 @@ const QRCodePage = () => {
             )}
           </div>
 
-          {/* Link de conexão (white label) */}
           {status !== "connected" && (
             <div className="mt-8 instance-card">
               <div className="flex items-center gap-3 mb-4">
@@ -550,7 +536,7 @@ const QRCodePage = () => {
                 <h3 className="text-lg font-bold text-white">Link de Conexão</h3>
               </div>
               <p className="text-sm text-gray-400 mb-4">
-                Envie este link para o cliente conectar o WhatsApp dele (acesso apenas à tela de escanear).
+                Envie este link para o cliente conectar o WhatsApp dele (apenas a tela de escanear).
               </p>
               <div className="flex gap-2">
                 <input type="text" value={connectionLink} readOnly className="input-field flex-1" />
@@ -564,7 +550,6 @@ const QRCodePage = () => {
         </div>
       </main>
 
-      {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in">
           <div className="bg-bg-card border border-green-400/30 rounded-2xl p-12 max-w-md w-full text-center neon-glow">
