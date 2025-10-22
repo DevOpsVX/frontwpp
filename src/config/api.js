@@ -5,12 +5,14 @@ const API_BASE =
 export const API_ENDPOINTS = {
   listInstances: () => `${API_BASE}/api/instances`,
   createInstance: () => `${API_BASE}/api/instances`,
-  disconnect: (instanceName) => `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/disconnect`,
-  qr: (instanceName) => `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`,
+  disconnect: (instanceName) =>
+    `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/disconnect`,
+  qr: (instanceName) =>
+    `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`,
 };
 
 /**
- * Requisições HTTP padrão (JSON).
+ * Requisições JSON padrão
  */
 export async function apiRequest(pathOrUrl, { method = 'GET', body, headers } = {}) {
   const url = pathOrUrl.startsWith('http')
@@ -31,9 +33,8 @@ export async function apiRequest(pathOrUrl, { method = 'GET', body, headers } = 
 }
 
 /**
- * WebSocket (na verdade SSE) para QR/Status.
- * Mantém o nome "createWebSocket" para compatibilidade com seu ConnectWhatsApp.jsx.
- * Retorna o EventSource e permite passar handlers opcionais.
+ * “WebSocket” compatível (SSE) para QR/Status
+ * Mantém o nome createWebSocket para não quebrar imports existentes.
  */
 export function createWebSocket(urlOrInstanceName, handlers = {}) {
   const url = urlOrInstanceName.startsWith('http')
@@ -45,7 +46,7 @@ export function createWebSocket(urlOrInstanceName, handlers = {}) {
   // Evento padrão (mensagem genérica)
   es.onmessage = (e) => handlers.onMessage?.(e.data);
 
-  // Eventos nomeados que o backend envia
+  // Eventos nomeados emitidos pelo backend
   es.addEventListener('qr', (e) => {
     try { handlers.onQr?.(JSON.parse(e.data)); } catch { handlers.onQr?.(e.data); }
   });
