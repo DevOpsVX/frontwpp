@@ -1,20 +1,23 @@
-import { useEffect, useState } from 'react';
-import { api } from './config/api';
-import ConnectWhatsApp from './ConnectWhatsApp';
+// src/App.jsx
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { apiRequest, API_ENDPOINTS } from "./config/api";
+import { Plus, QrCode, Trash2 } from "lucide-react";
 
 export default function App() {
-  const [items, setItems] = useState([]);
+  const navigate = useNavigate();
+  const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [err, setErr] = useState('');
-  const [connecting, setConnecting] = useState(null); // instanceName
+  const [term, setTerm] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [errorNew, setErrorNew] = useState("");
 
   async function load() {
     setLoading(true);
     try {
-      const resp = await api.listInstances();
-      setItems(resp.data || []);
+      const data = await apiRequest(API_ENDPOINTS.listInstances());
+      setInstances(Array.isArray(data) ? data : (data?.instances || []));
     } catch (e) {
       console.error(e);
     } finally {
@@ -22,84 +25,121 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => {
+    const t = term.trim().toLowerCase();
+    if (!t) return instances;
+    return instances.filter(
+      (it) =>
+        it?.instance_name?.toLowerCase().includes(t) ||
+        it?.instance_id?.toLowerCase().includes(t)
+    );
+  }, [instances, term]);
 
   async function onCreate() {
-    setErr('');
+    setErrorNew("");
+    const name = (newName || "").trim();
+    if (!/^[a-z0-9-]{3,40}$/.test(name)) {
+      setErrorNew("Use apenas minúsculas, números e hífen (3-40).");
+      return;
+    }
     try {
-      if (!/^[a-z0-9-]+$/.test(newName.trim())) {
-        throw new Error('Use apenas letras minúsculas, números e hífen (-).');
-      }
-      await api.createInstance(newName.trim());
-      setModalOpen(false);
-      setNewName('');
-      await load();
-      setConnecting(newName.trim());
+      await apiRequest(API_ENDPOINTS.createInstance(), {
+        method: "POST",
+        body: { instanceName: name },
+      });
+      setShowNew(false);
+      setNewName("");
+      // Abre a tela de conexão para esta instância
+      navigate(`/connect/${encodeURIComponent(name)}`);
+      // E recarrega a lista em background
+      load();
     } catch (e) {
-      setErr(e.message || String(e));
+      setErrorNew(String(e?.message || e));
     }
   }
 
+  async function onDisconnect(name) {
+    try {
+      await apiRequest(API_ENDPOINTS.disconnect(name), { method: "POST" });
+    } catch (e) {}
+    load();
+  }
+
   return (
-    <div className="p-6 text-white">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Volxo</h1>
+    <div className="min-h-screen bg-[#0b0f12] text-white">
+      <header className="p-4 flex items-center justify-between border-b border-[#1f2937]">
+        <div className="text-2xl font-semibold">Volxo</div>
         <button
-          className="px-3 py-2 rounded bg-cyan-400 text-black"
-          onClick={() => setModalOpen(true)}
+          onClick={() => setShowNew(true)}
+          className="inline-flex items-center gap-2 bg-cyan-400 text-black px-3 py-2 rounded"
         >
-          + Nova Instância
+          <Plus size={18} /> Nova Instância
         </button>
-      </div>
+      </header>
 
-      <input
-        placeholder="Pesquisar instâncias..."
-        className="w-full mb-4 px-3 py-2 rounded bg-[#111] border border-[#333]"
-        onChange={() => {}}
-      />
+      <main className="p-6 max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 mb-4">
+          <input
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Pesquisar instâncias..."
+            className="w-full bg-[#0f1520] border border-[#1f2937] rounded px-3 py-2 outline-none"
+          />
+          <span className="text-sm text-gray-400">
+            Ativas: {instances?.length || 0}
+          </span>
+        </div>
 
-      {loading ? (
-        <p>Carregando...</p>
-      ) : items.length === 0 ? (
-        <p>Nenhuma instância.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {items.map((it) => (
-            <div key={it.instance_name} className="p-4 rounded bg-[#0b0f12] border border-[#1f2937]">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-sm text-gray-400">{it.instance_name}</div>
-                  <div className="text-xs text-gray-500">
-                    {it.phone_number || 'sem número'}
+        {loading ? (
+          <div className="text-gray-400">Carregando...</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-gray-400">Nenhuma instância.</div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((it) => {
+              const name = it.instance_name || it.instancename || it.instanceId;
+              const id = it.instance_id || it.instanceId;
+              return (
+                <div key={`${name}-${id}`} className="border border-[#1f2937] rounded-xl p-4 bg-[#0f1520]">
+                  <div className="text-sm text-gray-400 mb-2">{name}</div>
+                  <div className="text-xs text-gray-500 break-all mb-4">{id}</div>
+                  <div className="flex gap-2">
+                    <Link
+                      to={`/connect/${encodeURIComponent(name)}`}
+                      className="inline-flex items-center gap-2 bg-cyan-400 text-black px-3 py-2 rounded"
+                    >
+                      <QrCode size={16} /> Conectar
+                    </Link>
+                    <button
+                      onClick={() => onDisconnect(name)}
+                      className="inline-flex items-center gap-2 bg-[#222] px-3 py-2 rounded"
+                    >
+                      <Trash2 size={16} /> Desconectar
+                    </button>
                   </div>
                 </div>
-                <button
-                  className="px-3 py-2 rounded bg-cyan-400 text-black"
-                  onClick={() => setConnecting(it.instance_name)}
-                >
-                  Conectar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </main>
 
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-          <div className="bg-[#0b0f12] border border-[#1f2937] rounded-xl p-5 w-[420px]">
-            <h2 className="text-lg mb-3">Nova Instância</h2>
+      {/* Modal de nova instância */}
+      {showNew && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
+          <div className="bg-[#0b0f12] border border-[#1f2937] rounded-2xl p-6 w-[480px] flex flex-col gap-4">
+            <h3 className="text-xl">Nova Instância</h3>
             <input
-              className="w-full mb-2 px-3 py-2 rounded bg-[#111] border border-[#333]"
-              placeholder="nome-da-instancia"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              placeholder="ex.: minha-instancia"
+              className="bg-[#0f1520] border border-[#1f2937] rounded px-3 py-2 outline-none"
             />
-            {err && <div className="text-red-300 text-sm mb-2">{err}</div>}
-            <div className="flex gap-2 justify-end">
-              <button className="px-3 py-2 rounded bg-[#222]" onClick={() => setModalOpen(false)}>
+            {errorNew && <div className="text-sm text-yellow-300">{errorNew}</div>}
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-2 rounded bg-[#222]" onClick={() => setShowNew(false)}>
                 Cancelar
               </button>
               <button className="px-3 py-2 rounded bg-cyan-400 text-black" onClick={onCreate}>
@@ -108,13 +148,6 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
-
-      {connecting && (
-        <ConnectWhatsApp
-          instanceName={connecting}
-          onClose={() => setConnecting(null)}
-        />
       )}
     </div>
   );
