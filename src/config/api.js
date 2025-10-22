@@ -1,41 +1,40 @@
-// src/api.js
-const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '';
+const API_BASE =
+  import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:10000';
 
-async function j(method, url, body) {
-  const r = await fetch(`${API_URL}${url}`, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
+async function http(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
   });
-  if (!r.ok) {
-    const text = await r.text().catch(() => '');
-    let data;
-    try { data = JSON.parse(text); } catch { data = { message: text || r.statusText }; }
-    throw Object.assign(new Error(data.message || 'Erro de rede'), { status: r.status, data });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (_) {}
+  if (!res.ok) {
+    throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
   }
-  return r.status === 204 ? null : r.json();
+  return data;
 }
 
 export const api = {
-  // Lista as instalações do Supabase (via backend)
-  listInstances() {
-    return j('GET', '/api/instances');
+  listInstances: () => http('/api/instances'),
+  createInstance: (instanceName) =>
+    http('/api/instances', {
+      method: 'POST',
+      body: JSON.stringify({ instanceName }),
+    }),
+  openQrStream(instanceName, onEvent) {
+    const url = `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`;
+    const es = new EventSource(url);
+    es.onmessage = (e) => onEvent?.('message', e.data);
+    es.addEventListener('qr', (e) => onEvent?.('qr', JSON.parse(e.data)));
+    es.addEventListener('status', (e) => onEvent?.('status', JSON.parse(e.data)));
+    es.addEventListener('error', (e) => onEvent?.('error', { message: 'SSE error' }));
+    return es;
   },
-  // Cria registro local (somente nome) e devolve instance_name
-  createInstance(instance_name) {
-    return j('POST', '/api/instances', { instance_name });
-  },
-  // Vincula tokens após OAuth (backend faz, front só navega)
-  // Dispara conexão do WPP (gera QR assim que o WS entregar)
-  startWpp(instance_name) {
-    return j('POST', '/api/instances/connect', { instance_name });
-  },
-  // Pede “desconectar” e remove sessão
-  disconnect(instance_name) {
-    return j('POST', '/api/instances/disconnect', { instance_name });
-  },
-  // Dados de status (profile, phone, conectado etc.)
-  getStatus(instance_name) {
-    return j('GET', `/api/instances/${encodeURIComponent(instance_name)}/status`);
+  disconnect(instanceName) {
+    return http(`/api/instances/${encodeURIComponent(instanceName)}/disconnect`, {
+      method: 'POST',
+    });
   },
 };
