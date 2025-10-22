@@ -2,63 +2,91 @@
 const API_BASE =
   (import.meta.env.VITE_API_URL || '').replace(/\/$/, '') || 'http://localhost:10000';
 
-// Endpoints padronizados do backend
 export const API_ENDPOINTS = {
+  // Instâncias
   listInstances: () => `${API_BASE}/api/instances`,
   createInstance: () => `${API_BASE}/api/instances`,
-  deleteInstance: (instanceName) =>
-    `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}`, // DELETE
-  disconnect: (instanceName) =>
-    `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/disconnect`, // POST
-  // fluxo GHL: o back começa o OAuth e depois redireciona pro GHL
-  oauthStart: (instanceName) =>
-    `${API_BASE}/leadconnectorhq/oauth/start?instanceName=${encodeURIComponent(instanceName)}`,
-  // stream SSE de QR/Status
+
+  // Variante A (path) e B (query) para DELETE
+  deleteInstancePath: (instanceName) =>
+    `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}`,
+  deleteInstanceQuery: (instanceName) =>
+    `${API_BASE}/api/instances?instanceName=${encodeURIComponent(instanceName)}`,
+
+  // Desconectar (mantém path e oferece fallback por query se precisar)
+  disconnectPath: (instanceName) =>
+    `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/disconnect`,
+  disconnectQuery: (instanceName) =>
+    `${API_BASE}/api/instances/disconnect?instanceName=${encodeURIComponent(instanceName)}`,
+
+  // QR (SSE ou long-polling do seu backend)
   qr: (instanceName) =>
     `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`,
+
+  // GHL OAuth (principal e fallback)
+  ghlLoginPrimary: (instanceName) =>
+    `${API_BASE}/leadconnectorhq/oauth/login?instanceName=${encodeURIComponent(instanceName)}`,
+  ghlLoginFallback: (instanceName) =>
+    `${API_BASE}/leadconnectorhq/oauth/start?instanceName=${encodeURIComponent(instanceName)}`
 };
 
-// fetch JSON “seguro”
-export async function apiRequest(pathOrUrl, { method = 'GET', body, headers } = {}) {
-  const url = pathOrUrl.startsWith('http')
-    ? pathOrUrl
-    : `${API_BASE}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
-
+/** Helpers básicos de fetch JSON */
+export async function apiRequest(url, opts = {}) {
   const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
-    body: body ? JSON.stringify(body) : undefined,
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
   });
-
-  let data = null;
-  try { data = await res.json(); } catch (_) {}
-
   if (!res.ok) {
-    const msg = data?.error || data?.message || `HTTP ${res.status}`;
-    throw new Error(msg);
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}${text ? `: ${text}` : ''}`);
   }
-  return data;
+  // 204/205 não têm body
+  if (res.status === 204 || res.status === 205) return null;
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
 }
 
-// “WebSocket” compatível via SSE (EventSource)
-export function createWebSocket(urlOrInstanceName, handlers = {}) {
-  const url = urlOrInstanceName.startsWith('http')
-    ? urlOrInstanceName
-    : API_ENDPOINTS.qr(urlOrInstanceName);
+/** DELETE com fallback (path -> query) */
+export async function deleteInstance(instanceName) {
+  try {
+    return await apiRequest(API_ENDPOINTS.deleteInstancePath(instanceName), {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    // se rota path não existir, tenta query
+    if (String(e.message).includes('HTTP 404')) {
+      return apiRequest(API_ENDPOINTS.deleteInstanceQuery(instanceName), {
+        method: 'DELETE'
+      });
+    }
+    throw e;
+  }
+}
 
-  const es = new EventSource(url);
+/** Desconectar com fallback (path -> query) */
+export async function disconnectInstance(instanceName) {
+  try {
+    return await apiRequest(API_ENDPOINTS.disconnectPath(instanceName), {
+      method: 'POST'
+    });
+  } catch (e) {
+    if (String(e.message).includes('HTTP 404')) {
+      return apiRequest(API_ENDPOINTS.disconnectQuery(instanceName), {
+        method: 'POST'
+      });
+    }
+    throw e;
+  }
+}
 
-  es.onmessage = (e) => handlers.onMessage?.(e.data);
-
-  es.addEventListener('qr', (e) => {
-    try { handlers.onQr?.(JSON.parse(e.data)); } catch { handlers.onQr?.(e.data); }
-  });
-
-  es.addEventListener('status', (e) => {
-    try { handlers.onStatus?.(JSON.parse(e.data)); } catch { handlers.onStatus?.(e.data); }
-  });
-
-  es.addEventListener('error', (e) => handlers.onError?.(e));
-
-  return es;
+/** URL do login GHL com teste de reachability (login -> start) */
+export async function resolveGhlLoginUrl(instanceName) {
+  const primary = API_ENDPOINTS.ghlLoginPrimary(instanceName);
+  try {
+    // HEAD para não acionar o fluxo; só checa se a rota existe
+    const r = await fetch(primary, { method: 'HEAD' });
+    if (r.ok) return primary;
+    // se 405/404 cai para fallback
+  } catch (_) { /* ignora e usa fallback */ }
+  return API_ENDPOINTS.ghlLoginFallback(instanceName);
 }
