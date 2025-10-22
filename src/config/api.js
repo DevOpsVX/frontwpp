@@ -1,40 +1,62 @@
+// src/config/api.js
 const API_BASE =
-  import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:10000';
+  (import.meta.env.VITE_API_URL || '').replace(/\/$/, '') || 'http://localhost:10000';
 
-async function http(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
+export const API_ENDPOINTS = {
+  listInstances: () => `${API_BASE}/api/instances`,
+  createInstance: () => `${API_BASE}/api/instances`,
+  disconnect: (instanceName) => `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/disconnect`,
+  qr: (instanceName) => `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`,
+};
+
+/**
+ * Requisições HTTP padrão (JSON).
+ */
+export async function apiRequest(pathOrUrl, { method = 'GET', body, headers } = {}) {
+  const url = pathOrUrl.startsWith('http')
+    ? pathOrUrl
+    : `${API_BASE}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
+
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
+    body: body ? JSON.stringify(body) : undefined,
   });
+
   let data = null;
-  try {
-    data = await res.json();
-  } catch (_) {}
-  if (!res.ok) {
-    throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
-  }
+  try { data = await res.json(); } catch (_) {}
+
+  if (!res.ok) throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
   return data;
 }
 
-export const api = {
-  listInstances: () => http('/api/instances'),
-  createInstance: (instanceName) =>
-    http('/api/instances', {
-      method: 'POST',
-      body: JSON.stringify({ instanceName }),
-    }),
-  openQrStream(instanceName, onEvent) {
-    const url = `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`;
-    const es = new EventSource(url);
-    es.onmessage = (e) => onEvent?.('message', e.data);
-    es.addEventListener('qr', (e) => onEvent?.('qr', JSON.parse(e.data)));
-    es.addEventListener('status', (e) => onEvent?.('status', JSON.parse(e.data)));
-    es.addEventListener('error', (e) => onEvent?.('error', { message: 'SSE error' }));
-    return es;
-  },
-  disconnect(instanceName) {
-    return http(`/api/instances/${encodeURIComponent(instanceName)}/disconnect`, {
-      method: 'POST',
-    });
-  },
-};
+/**
+ * WebSocket (na verdade SSE) para QR/Status.
+ * Mantém o nome "createWebSocket" para compatibilidade com seu ConnectWhatsApp.jsx.
+ * Retorna o EventSource e permite passar handlers opcionais.
+ */
+export function createWebSocket(urlOrInstanceName, handlers = {}) {
+  const url = urlOrInstanceName.startsWith('http')
+    ? urlOrInstanceName
+    : API_ENDPOINTS.qr(urlOrInstanceName);
+
+  const es = new EventSource(url);
+
+  // Evento padrão (mensagem genérica)
+  es.onmessage = (e) => handlers.onMessage?.(e.data);
+
+  // Eventos nomeados que o backend envia
+  es.addEventListener('qr', (e) => {
+    try { handlers.onQr?.(JSON.parse(e.data)); } catch { handlers.onQr?.(e.data); }
+  });
+
+  es.addEventListener('status', (e) => {
+    try { handlers.onStatus?.(JSON.parse(e.data)); } catch { handlers.onStatus?.(e.data); }
+  });
+
+  es.addEventListener('error', (e) => {
+    handlers.onError?.(e);
+  });
+
+  return es;
+}
