@@ -7,86 +7,85 @@ export const API_ENDPOINTS = {
   listInstances: () => `${API_BASE}/api/instances`,
   createInstance: () => `${API_BASE}/api/instances`,
 
-  // Variante A (path) e B (query) para DELETE
   deleteInstancePath: (instanceName) =>
     `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}`,
   deleteInstanceQuery: (instanceName) =>
     `${API_BASE}/api/instances?instanceName=${encodeURIComponent(instanceName)}`,
 
-  // Desconectar (mantém path e oferece fallback por query se precisar)
   disconnectPath: (instanceName) =>
     `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/disconnect`,
   disconnectQuery: (instanceName) =>
     `${API_BASE}/api/instances/disconnect?instanceName=${encodeURIComponent(instanceName)}`,
 
-  // QR (SSE ou long-polling do seu backend)
+  // QR (mantido, para a etapa seguinte)
   qr: (instanceName) =>
     `${API_BASE}/api/instances/${encodeURIComponent(instanceName)}/qr`,
 
-  // GHL OAuth (principal e fallback)
-  ghlLoginPrimary: (instanceName) =>
-    `${API_BASE}/leadconnectorhq/oauth/login?instanceName=${encodeURIComponent(instanceName)}`,
-  ghlLoginFallback: (instanceName) =>
-    `${API_BASE}/leadconnectorhq/oauth/start?instanceName=${encodeURIComponent(instanceName)}`
+  // OAuth GHL (principal + fallback; agora SEM instanceName)
+  ghlLoginPrimary: () => `${API_BASE}/leadconnectorhq/oauth/login`,
+  ghlLoginFallback: () => `${API_BASE}/leadconnectorhq/oauth/start`,
 };
 
-/** Helpers básicos de fetch JSON */
+// --------- helpers ---------
 export async function apiRequest(url, opts = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
-    ...opts
+    ...opts,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`HTTP ${res.status}${text ? `: ${text}` : ''}`);
   }
-  // 204/205 não têm body
   if (res.status === 204 || res.status === 205) return null;
   const ct = res.headers.get('content-type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-/** DELETE com fallback (path -> query) */
+// DELETE com fallback
 export async function deleteInstance(instanceName) {
   try {
     return await apiRequest(API_ENDPOINTS.deleteInstancePath(instanceName), {
-      method: 'DELETE'
+      method: 'DELETE',
     });
   } catch (e) {
-    // se rota path não existir, tenta query
     if (String(e.message).includes('HTTP 404')) {
       return apiRequest(API_ENDPOINTS.deleteInstanceQuery(instanceName), {
-        method: 'DELETE'
+        method: 'DELETE',
       });
     }
     throw e;
   }
 }
 
-/** Desconectar com fallback (path -> query) */
+// Desconectar com fallback
 export async function disconnectInstance(instanceName) {
   try {
     return await apiRequest(API_ENDPOINTS.disconnectPath(instanceName), {
-      method: 'POST'
+      method: 'POST',
     });
   } catch (e) {
     if (String(e.message).includes('HTTP 404')) {
       return apiRequest(API_ENDPOINTS.disconnectQuery(instanceName), {
-        method: 'POST'
+        method: 'POST',
       });
     }
     throw e;
   }
 }
 
-/** URL do login GHL com teste de reachability (login -> start) */
-export async function resolveGhlLoginUrl(instanceName) {
-  const primary = API_ENDPOINTS.ghlLoginPrimary(instanceName);
+// Decide a rota de login do GHL (login -> start)
+export async function resolveGhlLoginUrl() {
+  const primary = API_ENDPOINTS.ghlLoginPrimary();
   try {
-    // HEAD para não acionar o fluxo; só checa se a rota existe
     const r = await fetch(primary, { method: 'HEAD' });
     if (r.ok) return primary;
-    // se 405/404 cai para fallback
-  } catch (_) { /* ignora e usa fallback */ }
-  return API_ENDPOINTS.ghlLoginFallback(instanceName);
+  } catch (_) {}
+  return API_ENDPOINTS.ghlLoginFallback();
+}
+
+// Export “createWebSocket” só para sanar o erro de build do ConnectWhatsApp.
+// (Quando formos mexer na parte do QR, apontamos para o endpoint real de WS.)
+export function createWebSocket(_instanceName) {
+  // Placeholder (não quebra o build e não é usado no fluxo atual)
+  return null;
 }
