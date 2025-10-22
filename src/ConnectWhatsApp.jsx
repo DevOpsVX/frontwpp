@@ -21,7 +21,7 @@ export default function ConnectWhatsApp(props) {
       return;
     }
 
-    // abre stream (SSE) — mantido o nome createWebSocket por compatibilidade
+    // Abre stream SSE
     esRef.current = createWebSocket(API_ENDPOINTS.qr(instanceName), {
       onQr: (payload) => {
         const value = typeof payload === "string" ? payload : payload.qr;
